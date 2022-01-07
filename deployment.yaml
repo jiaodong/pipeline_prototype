@@ -1,5 +1,5 @@
 Pipeline:
-  Class: pipeline.FeatureProcessing
+  Class: pipeline.Pipeline
   Owner: None
   Num_replicas: None
   Config: []
