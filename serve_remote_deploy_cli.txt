@@ -3,30 +3,30 @@
 Directory:
 
 ~/model/
-    - Pipeline.py: contains Python code for all deployments
+    - pipeline.py: contains Python code for all deployments
 -------------------------------------------------------
 
-(base) model $ serve build Pipeline.py
+(base) model $ serve build pipeline.py
 
-Building Pipeline.py...
-Success! Configuration stored in Pipeline.yaml
+Building pipeline.py...
+Success! Configuration stored in pipeline.yaml
 
 -------------------------------------------------------
 
 Directory:
 
 ~/model/
-    - Pipeline.py: contains Python code for all deployments
-    - Pipeline.yaml: contains YAML configuration for all deployments
+    - pipeline.py: contains Python code for all deployments
+    - pipeline.yaml: contains YAML configuration for all deployments
 
-Pipeline.yaml has references to the code files containing all the classes
+pipeline.yaml has references to the code files containing all the classes
 that will be deployed. It also has configuration values for all the
 deployments.
 
 -------------------------------------------------------
 
 (base) model $ export RAY_ADDRESS="10.1.0.0:6000"
-(base) model $ serve deploy Pipeline.yaml
+(base) model $ serve deploy pipeline.yaml
 
 Connecting to existing Ray cluster at 10.1.0.0:6000
 ...Logging statements...
@@ -52,11 +52,11 @@ Option 1: Retrieve the yaml file from the running Ray cluster
 (base) model $ serve configuration
 
 Connecting to existing Ray cluster at 10.1.0.0:6000
-...Configuration stored at Pipeline.yaml...
+...Configuration stored at pipeline.yaml...
 
-(User makes changes to the Pipeline.yaml configuration file)
+(User makes changes to the pipeline.yaml configuration file)
 
-(base) model $ serve deploy Pipeline.yaml
+(base) model $ serve deploy pipeline.yaml
 
 Connecting to existing Ray cluster at 10.1.0.0:6000
 ...Logging statements...
@@ -65,13 +65,38 @@ Connecting to existing Ray cluster at 10.1.0.0:6000
 -------------------------------------------------------
 Option 2: Rebuild the yaml file from local code
 
-(base) model $ serve build Pipeline.py
+(base) model $ serve build pipeline.py
 
-Building Pipeline.py...
-Success! Configuration stored in Pipeline.yaml
+Building pipeline.py...
+Success! Configuration stored in pipeline.yaml
 
-(base) model $ serve deploy Pipeline.yaml
+(base) model $ serve deploy pipeline.yaml
 
 Connecting to existing Ray cluster at 10.1.0.0:6000
 ...Logging statements...
 ...Statements about deployments...
+
+-------------------------------------------------------
+-------------------------------------------------------
+*** Making a code change ***
+
+Making a code change requires the user to also incremement the version
+of their deployment in the @serve.deployment() decorator (as is already
+required). After that, the user can generate the yaml file, and they can
+deploy it.
+
+-------------------------------------------------------
+
+(base) model $ vim pipeline.py
+(User edits some deployments, and they bump the versions of those deployments)
+
+(base) model $ serve build pipeline.py
+
+Building pipeline.py...
+Success! Configuration stored in pipeline.yaml
+
+(base) model $ serve deploy pipeline.yaml
+
+Connecting to existing Ray cluster at 10.1.0.0:6000
+...Logging statements...
+...Statements about redeploying **only** the deployments that have changed...
