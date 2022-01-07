@@ -29,7 +29,32 @@ Ops Team:
     3) Mutate fields on the yaml file, such as system configs (num_replicas),
         or runtime variables (weight = 1 -> weight = 2)
     4) Use CLI to redeploy yaml file and apply changes to existing pipeline
-    5) In case of code changes ...
+
+
+Single deployment code change:
+ - Dev Team:
+    1) Change code and verify it works on ray cluster
+    2) Manually bump deployment verison @serve.deployment(version="v2")
+    3) Generated new deployment yaml where version field changed
+ - Ops Team:
+    1) Just apply the new yaml with right code packaging, ideally self-contained
+        format of deployment.
+
+TBD: Packaing of deployment code and runtime_env, extend to pipeline
+
+Multiple deployments coed chagne (pipeline, update in tandem):
+  - Dev Team:
+    1) Same as single case, except multiple classes are changed and bumped
+        version
+  - Ops Team:
+    1) Just apply the new yaml with right code packaging, ideally self-contained
+        format of deployment.
+  - Serve:
+    1) Control plane needs to know dependencies to kick off updates in right
+        order, or fully async for each one
+    2) Data plane needs to redirect traffic to right deployments while multiple
+        versions of a deployment exist
+
 """
 
 # Pipeline nodes are written from leaf to root (entrypoint)
