@@ -5,7 +5,7 @@ RequestManager:
     - is_spam
     - is_important
     - aggregator
-  Num_replicas: None
+  Num_replicas: 1
   Config: []
   Version: None
   Prev_version: None
@@ -19,7 +19,7 @@ is_spam:
   Code_file: ~/model/pipeline.py
   Class: pipeline.SpamChecker
   Children: []
-  Num_replicas: None
+  Num_replicas: 1
   # ...
   Ray_actor_options: None
   Instance_variables: []
@@ -28,7 +28,7 @@ is_important:
   Code_file: ~/model/pipeline.py
   Class: pipeline.ImportantChecker
   Children: []
-  Num_replicas: None
+  Num_replicas: 1
   # ...
   Ray_actor_options: None
   Instance_variables: []
@@ -37,7 +37,7 @@ aggregator:
   Code_file: ~/model/pipeline.py
   Class: pipeline.Aggregator
   Children: []
-  Num_replicas: None
+  Num_replicas: 1
   # ...
   Ray_actor_options: None
   Instance_variables: []

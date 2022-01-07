@@ -1,8 +1,11 @@
 Pipeline:
   Code_file: ~/model/pipeline.py
   Class: Pipeline
-  Owner: None
-  Num_replicas: None
+  Children:
+    - feature_processing
+    - model_1
+    - model_2
+  Num_replicas: 1
   Config: []
   Version: None
   Prev_version: None
@@ -15,17 +18,21 @@ Pipeline:
 feature_processing:
   Code_file: ~/model/pipeline.py
   Class: pipeline.FeatureProcessing
-  Owner: Pipeline
-  Num_replicas: None
+  Children: None
+  Num_replicas: 1
   # ...
+  Init_args: None
+  Init_kwargs: None
   Ray_actor_options: None
   Instance_variables: []
 
 model_1:
   Code_file: ~/model/pipeline.py
-  Owner: Pipeline
-  Num_replicas: None
+  Children: None
+  Num_replicas: 1
   # ...
+  Init_args: (1,)
+  Init_kwargs: None
   Ray_actor_options: None
   Instance_variables:
     - weight: 1
@@ -33,14 +40,12 @@ model_1:
 
 model_2:
   Code_file: ~/model/pipeline.py
-  Owner: Pipeline
-  Num_replicas: None
+  Children: None
+  Num_replicas: 2
   # ...
+  Init_args: (2,)
+  Init_kwargs: None
   Ray_actor_options: None
   Instance_variables:
     - weight: 2
     - policy: 1
-
-
-
-

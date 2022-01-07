@@ -4,6 +4,34 @@ import asyncio
 
 from ray import serve
 
+Configurable = Any
+
+"""
+CUJ:
+
+Dev Team:
+ - Mostly deal with code
+
+    1) Write python code with just classes
+    2) Run python script with classes
+    3) Annotate classes to scale with @serve.deployment
+    4) Test it in local / remote ray cluster via MyClass.deploy(recursive=True)
+    5) Everything looks good, call build / generate mode to generate a
+        self-contained (?) yaml file
+    6) [Optional] Use CLI to deploy the yaml file to production
+
+Ops Team:
+ - Mostly deal with configs / ops without knowing or mutating code
+
+    1) Get the yaml file from Dev or call into CLI to query the yaml
+    2) Yaml file should represent target state and ground truth of current
+        deployment / pipeline
+    3) Mutate fields on the yaml file, such as system configs (num_replicas),
+        or runtime variables (weight = 1 -> weight = 2)
+    4) Use CLI to redeploy yaml file and apply changes to existing pipeline
+    5) In case of code changes ...
+"""
+
 # Pipeline nodes are written from leaf to root (entrypoint)
 @serve.deployment
 class Model:
@@ -14,8 +42,8 @@ class Model:
     # Can also be instantiated multiple times with different weights, under
     # same class def & implementation.
     def __init__(self, weight):
-        self.weight = weight
-        self.policy = 1
+        self.weight: Configurable = weight
+        self.policy: Configurable = 1
 
     async def __call__(self, req):
         return req * self.weight
@@ -26,7 +54,6 @@ class FeatureProcessing:
     _version: int = 1
 
     def __init__(self):
-        # self.dynamic_dispatch = DynamicDispatch()
         pass
 
     async def __call__(self, req):
@@ -38,11 +65,7 @@ class Pipeline:
     _version: int = 1
 
     def __init__(self):
-        # Callable instantiated after forward()
         self.feature_processing = FeatureProcessing()
-
-        # self.feature_processing = feature_processing
-
         self.lock = threading.Lock()
 
         # TODO: Add a pipeline container here so we can keep this implementation
@@ -51,25 +74,6 @@ class Pipeline:
 
         self.model_1 = Model(1) # What if this is heavy .. use a stub ?
         self.model_2 = Model(2)
-
-        # return self.model_1(self.feature_processing(req)) + self.model_2(self.feature_processing(req))
-
-        # self.split_ratio: Configurable = 0.5
-        # {
-        #     Pipeline:
-        #         FeatureProcessing: feature_processing
-        #             num_replicas = 1 -> 2
-        #         Model: model_1
-        #             num_replicas = 1
-        #             ....
-        #             split_ratio = 0.5
-
-        #     Immutable Fields:
-        #         Pipeline -> FeatureProcessing
-        #             -> Model1
-        #             -> Model2
-        # }
-
 
     async def __call__(self, req):
         """
@@ -93,26 +97,6 @@ class Pipeline:
 
         return x
 
-        # await c(
-        #     b(req),
-        #     a(req)
-        # )
-
-        # Whole graph is           model_1
-        #                        /          \
-        # preprocess -- dispatch - model_2 -- selection -- aggregate_fn --> output
-        #                        \          /
-        #                          model_3
-        # dispatch: choose model subset based on input attribute
-        # selection: choose model outputs subset based on value
-
-        # fixed sized vector for model fanout ... didn't look simple as node_ref
-
-        # In authoring --> left to right
-        # On execution --> right to left
-
-        # can we automatically merge selection & aggregate in one node ?
-
     # def __repr__(self):
     #     """
     #     Return pretty printted nested nodes.
@@ -128,43 +112,59 @@ class Pipeline:
     def update(self, node_name: str, serialized_class_callable: bytes):
         pass
 
+
 """
-Another example where A takes input from B and C
+Another example where RequestManager takes input from B and C
 """
-class A:
+
+class SpamChecker:
     def __init__(self):
-        self.b = B()
-        self.c = C()
-        self.d = D()
+        pass
 
-        # serve.Broadcast(self, [b, c])
-        # serve.Reduce([b, c], d)
-
-    def __call__(self, req):
-        # ref = ray.remote(ray.remote(...))
-        # ray.get(ref)
-        return self.d(
-            self.b(req, self.e) + self.c(req)
-        )
-class B:
-    def __init__(self):
-        self.e = E()
-
-    def __call__(self, req, e) -> List:
-        a = e(req)
-        return [a , req + 1, req + 2]
-class C:
+    def __call__(self, req) -> List:
+        return [req + 1, req + 2]
+class ImportantChecker:
     def __init__(self):
         pass
 
     def __call__(self, req) -> List:
         return [req + 2, req]
 
-class D:
+class Aggregator:
     def __init__(self):
         pass
     def __call__(self, req: List):
         return sum(req)
+
+class RequestManager:
+    def __init__(self):
+        self.is_spam = SpamChecker()
+        self.is_important = ImportantChecker()
+        self.aggregator = Aggregator()
+
+        """
+        We can add serve modules that takes collection of serve handles and
+        optimize for most commonly used patterns to reduce uncessary data
+        fetching / ray.get, such as
+        https://docs.ray.io/en/master/ray-design-patterns/index.html
+
+            - Chaining
+                ray.get(a.remote(b.remote(c.remote(req))))
+            - Broadcast & Reduce
+                ray.get([req_refs])
+        """
+        # serve.Broadcast(self, [b, c])
+        # serve.Reduce([b, c], d)
+
+    def __call__(self, req):
+        # ref = ray.remote(ray.remote(...))
+        # ray.get(ref)
+        return self.aggregator(
+            self.is_spam(req) + self.is_important(req)
+        )
+
+
+# ===========================================================================
 
 async def main():
     # Solve node init / instantiate
