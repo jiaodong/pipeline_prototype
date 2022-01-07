@@ -132,17 +132,25 @@ class Pipeline:
 """
 Another example where A takes input from B and C
 """
+class A:
+    def __init__(self):
+        self.b = B()
+        self.c = C()
+        self.d = D()
+    def __call__(self, req):
+        return self.d(
+            self.b + self.c
+        )
 class B:
     pass
 class C:
     pass
 
-class A:
-    def __init__(self, b, c):
-        self.b = b
-        self.c = c
-    def __call__(self):
-        return self.b + self.c
+class D:
+    def __init__(self):
+        pass
+    def __call__(self, req1, req2):
+        return req1 + req2
 
 async def main():
     # Solve node init / instantiate
