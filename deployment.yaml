@@ -1,0 +1,44 @@
+Pipeline:
+  Class: pipeline.FeatureProcessing
+  Owner: None
+  Num_replicas: None
+  Config: []
+  Version: None
+  Prev_version: None
+  Init_args: None
+  Init_kwargs: None
+  Route_prefix: None
+  Ray_actor_options: None
+  Instance_variables: []
+
+feature_processing:
+  Class: pipeline.FeatureProcessing
+  Owner: Pipeline
+  Num_replicas: None
+  # ...
+  Ray_actor_options: None
+  Instance_variables: []
+
+model_1:
+  Class: pipeline.Model
+  Owner: Pipeline
+  Num_replicas: None
+  # ...
+  Ray_actor_options: None
+  Instance_variables:
+    - weight: 1
+    - policy: 1
+
+model_2:
+  Class: pipeline.Model
+  Owner: Pipeline
+  Num_replicas: None
+  # ...
+  Ray_actor_options: None
+  Instance_variables:
+    - weight: 2
+    - policy: 1
+
+
+
+
