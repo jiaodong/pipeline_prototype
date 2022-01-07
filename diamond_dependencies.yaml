@@ -1,7 +1,9 @@
-Pipeline:
+RequestManager:
   Code_file: ~/model/pipeline.py
-  Class: Pipeline
-  Owner: None
+  Class: pipeline.RequestManager
+  Children:
+    - is_spam
+    - is_important
   Num_replicas: None
   Config: []
   Version: None
@@ -12,35 +14,31 @@ Pipeline:
   Ray_actor_options: None
   Instance_variables: []
 
-feature_processing:
+is_spam:
   Code_file: ~/model/pipeline.py
-  Class: pipeline.FeatureProcessing
-  Owner: Pipeline
+  Class: pipeline.SpamChecker
+  Children:
+    - aggregator
   Num_replicas: None
   # ...
   Ray_actor_options: None
   Instance_variables: []
 
-model_1:
+is_important:
   Code_file: ~/model/pipeline.py
-  Owner: Pipeline
+  Class: pipeline.ImportantChecker
+  Children:
+    - aggregator
   Num_replicas: None
   # ...
   Ray_actor_options: None
-  Instance_variables:
-    - weight: 1
-    - policy: 1
+  Instance_variables: []
 
-model_2:
+aggregator:
   Code_file: ~/model/pipeline.py
-  Owner: Pipeline
+  Class: pipeline.Aggregator
+  Children: []
   Num_replicas: None
   # ...
   Ray_actor_options: None
-  Instance_variables:
-    - weight: 2
-    - policy: 1
-
-
-
-
+  Instance_variables: []

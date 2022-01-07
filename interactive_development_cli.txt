@@ -1,0 +1,21 @@
+Directory:
+
+~/model/
+    - pipeline.py: contains Python code for all deployments
+
+-------------------------------------------------------
+
+(base) model $ python pipeline.py
+Building pipeline.py...
+Configuration stored in pipeline.yaml
+
+...Logging statements about deployments...
+
+-------------------------------------------------------
+
+Directory:
+
+~/model/
+    - pipeline.py: contains Python code for all deployments
+    - pipeline.yaml: contains YAML configuration for all deployments
+
