@@ -51,7 +51,6 @@ class Pipeline:
 
         self.model_1 = Model(1) # What if this is heavy .. use a stub ?
         self.model_2 = Model(2)
-        self.model_3 = Model(3)
 
         # return self.model_1(self.feature_processing(req)) + self.model_2(self.feature_processing(req))
 
