@@ -1,5 +1,6 @@
 Pipeline:
-  Class: pipeline.Pipeline
+  Code_file: ~/model/pipeline.py
+  Class: Pipeline
   Owner: None
   Num_replicas: None
   Config: []
@@ -12,6 +13,7 @@ Pipeline:
   Instance_variables: []
 
 feature_processing:
+  Code_file: ~/model/pipeline.py
   Class: pipeline.FeatureProcessing
   Owner: Pipeline
   Num_replicas: None
@@ -20,7 +22,7 @@ feature_processing:
   Instance_variables: []
 
 model_1:
-  Class: pipeline.Model
+  Code_file: ~/model/pipeline.py
   Owner: Pipeline
   Num_replicas: None
   # ...
@@ -30,7 +32,7 @@ model_1:
     - policy: 1
 
 model_2:
-  Class: pipeline.Model
+  Code_file: ~/model/pipeline.py
   Owner: Pipeline
   Num_replicas: None
   # ...

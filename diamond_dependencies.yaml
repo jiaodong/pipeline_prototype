@@ -1,4 +1,5 @@
 RequestManager:
+  Code_file: ~/model/pipeline.py
   Class: pipeline.RequestManager
   Children:
     - is_spam
@@ -14,6 +15,7 @@ RequestManager:
   Instance_variables: []
 
 is_spam:
+  Code_file: ~/model/pipeline.py
   Class: pipeline.SpamChecker
   Children:
     - aggregator
@@ -23,6 +25,7 @@ is_spam:
   Instance_variables: []
 
 is_important:
+  Code_file: ~/model/pipeline.py
   Class: pipeline.ImportantChecker
   Children:
     - aggregator
@@ -32,6 +35,7 @@ is_important:
   Instance_variables: []
 
 aggregator:
+  Code_file: ~/model/pipeline.py
   Class: pipeline.Aggregator
   Children: []
   Num_replicas: None
