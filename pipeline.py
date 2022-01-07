@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Dict
+from typing import Any, Dict, List
 import asyncio
 
 from ray import serve
@@ -136,20 +136,35 @@ class A:
         self.b = B()
         self.c = C()
         self.d = D()
+
+        # serve.Broadcast(self, [b, c])
+        # serve.Reduce([b, c], d)
+
     def __call__(self, req):
+        # ref = ray.remote(ray.remote(...))
+        # ray.get(ref)
         return self.d(
-            self.b + self.c
+            self.b(req, self.e) + self.c(req)
         )
 class B:
-    pass
+    def __init__(self):
+        self.e = E()
+
+    def __call__(self, req, e) -> List:
+        a = e(req)
+        return [a , req + 1, req + 2]
 class C:
-    pass
+    def __init__(self):
+        pass
+
+    def __call__(self, req) -> List:
+        return [req + 2, req]
 
 class D:
     def __init__(self):
         pass
-    def __call__(self, req1, req2):
-        return req1 + req2
+    def __call__(self, req: List):
+        return sum(req)
 
 async def main():
     # Solve node init / instantiate
