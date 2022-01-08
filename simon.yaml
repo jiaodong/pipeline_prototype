@@ -1,0 +1,16 @@
+serve_system_level:
+Pipeline:
+    num_replicas: 2
+  Featurizer:
+autoscaling_config:
+      max_replicas: 10
+      min_replicas: 1
+
+user_config: # note this is a single opaque object
+  - type: PipelineConfig
+    deployment: Pipeline
+    value:
+      # "init args but you know it's json serializable"
+      spam_config_list:
+        - model_path_2
+        - model_path_3
