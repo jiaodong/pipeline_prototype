@@ -190,6 +190,9 @@ class RequestManager:
         """
         # serve.Broadcast(self, [b, c])
         # serve.Reduce([b, c], d)
+    @staticmethod
+    def build(config):
+
 
     def __call__(self, req):
         # ref = ray.remote(ray.remote(...))
@@ -641,5 +644,340 @@ SpamChecker.build(path)
     # setting self.inner_models = [serve.get_handle(name) for name in ["SpamCheker.0", "SpamChecker.1"]]
 
 
+from functools import partial
+import inspect
 
 # placeholder
+class Featurizer:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def build(*args, **kwargs):
+        sig = inspect.signature(Featurizer.__init__)
+        # Works like init but instead of executing, bind init args
+        return sig.bind(*args, **kwargs)
+
+
+class SpamFinder:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def build(*args, **kwargs):
+        # Works like init but instead of executing, bind init args
+        return partial(SpamFinder.__init__, *args, **kwargs)
+
+class Pipeline:
+	# Handles are injected at runtime.
+	def __init__(
+        self,
+        my_other_init_args,
+        model: Featurizer,
+        downstream: List[SpamFinder]
+    ):
+        # Variable name and arg name doesn't need to be the same
+        # user decides here.
+		self.model_1 = model
+		self.downstreams = downstream
+
+    @staticmethod
+	def build(config):
+        # Figure out dependencies without actually instantiating anything
+		# return the things to be injected into Pipeline
+
+		# direct tuples will be injected into *args
+        with ray.dag.builder():
+            m1 = Featurizer.remote(config.featurizer_config)
+            downstream_list = [SpamFinder.remote(path) for path in config.model_paths]
+
+		return m1, downstream_list
+
+    def forward(self, req):
+        if req > 0:
+            return self.model_1 + self.downstreams[0]
+        else:
+            return self.model_1 + self.downstreams[1]
+
+    def deploy():
+        pass
+
+===================
+
+
+@serve.deployment(num_replicas=2)
+class CachedModel():
+    def __init__(self, arg):
+        self.model = Model(arg)
+
+    def forward(self, x):
+        return self.model(x)
+
+    async def __call__(self, x):
+        return await self.forward(x)
+
+@serve.deployment(num_replicas=2)
+class Selector():
+    def __init__(self, arg, m1, m2):
+        self.model = Model(arg)
+        self.m1 = m1
+        self.m2 = m2
+
+    async def forward(self, req):
+        intermediate_rst = await self.model(req)
+        if intermediate_rst == 0:
+            return await self.m1(req)
+        else:
+            return await self.m2(req)
+
+        # Another possible communication pattern
+        return await self.model(
+            await self.m1(req) + await self.m2(req)
+        )
+
+    async def __call__(self, req):
+        return await self.forward(req)
+
+with ray.dag.builder() as sample_in:
+     m1 = CachedModel.remote(1) # bind init arg
+     m2 = CachedModel.remote(2) # bind init arg
+     selector = Selector.remote(3, m1, m2) # bind init arg + serve handles
+
+     dag = selector.forward.remote(sample_in)
+
+# Get whole DAG using Selector as root node
+dag_def = serve.pipeline(dag).build()
+print(dag_def) -> YAML / PrettyPrinted DAG with dependencies + args
+"""
+selector:
+    class: my_module.Selector
+    num_replicas: 2
+    init_args: 3
+
+m1:
+    class: my_module.Selector
+    num_replicas: 2
+    init_args: 1
+m2:
+    class: my_module.Selector
+    num_replicas: 2
+    init_args: 2
+
+==== Immutable Config====
+DAG:
+    selector -> m1
+            |
+            -> m2
+"""
+
+
+# If I want to extend and re-use existing classes, ideally without knowing
+# its implementation in detail
+@serve.deployment(num_replicas=2)
+class ExtendedClass():
+    def __init__(self, selector, m3):
+        self.selector = selector
+        self.m3 = m3
+
+    def forward(self, req):
+        if self.m3(req) == 0:
+            return self.selector(req)
+        else:
+            return 0
+
+    async def __call__(self, req):
+        return await self.forward(req)
+
+# Then extend the builder underneath
+with ray.dag.builder() as sample_in:
+     m1 = CachedModel.remote(1) # bind init arg
+     m2 = CachedModel.remote(2) # bind init arg
+     selector = Selector.remote(3, m1, m2) # bind init arg + serve handles
+     m3 = CachedModel.remote(3)
+     extended = ExtendedClass.remote(selector, m3)
+
+     dag = extended.forward.remote(sample_in)
+
+==========================================================================================
+class MyModel
+
+@serve.deployment(num_replicas=2) # Later will be -> @ray.remote(num_replicas=2)
+class Model:
+    def __init__(self, weights):
+        self.model = MyModel(weights)
+
+    def forward(self, input):
+        return self.model(input)
+
+@serve.deployment # Later will be -> @ray.remote
+class ModelSelection:
+    def __init__(self, m1: ActorHandleLike, m2: ActorHandleLike, threshold = 5):
+       self.m0 = Model(np.ones(5, dtype=np.float128))
+       self.m1 = m1 # Fulfilled at runtime, can be mock objects for testing
+       self.m2 = m2 # Fulfilled at runtime, can be mock objects for testing
+
+       self.threshold = threshold # This meant to be configurable
+
+    async def forward(self, req):
+        if req < self.threshold:
+            return await self.m0(
+                # We can optionally introduce operators to optimize most
+                # commonly appeared operation pattern to reduce intermediate
+                # data transfer
+                await self.m1(req) + await self.m2(req)
+            )
+        else:
+            return await self.m0(
+                await self.m1(req) * await self.m2(req)
+            )
+
+with ray.dag.builder() as sample_in:
+    m1 = Model.remote(np.zeros((2, 2))) # Different init args bounded for same class
+    m2 = Model.remote(np.ones((2, 2))) # Different init args bounded for same class
+    selection = ModelSelection.remote(
+        m1, m2,      # ActorHandleLikes are bounded at build time
+        threshold=10 # All the rest of init args/kwargs are also bounded for init
+                     # but can be configurable by applying YAML changes.
+    )
+    dag = selection.forward.remote(sample_in)
+
+# Locally evaluate on a single sample.
+dag.call(sample) -> ModelOutput
+
+# `artifact` is a pickleable, potentially non-human-readable blob.
+# `config` is a human-readable YAML that contains dynamic options (e.g., num_replicas for each model).
+artifact, config = dag.build(
+    runtime_env = {
+        "working_dir"= "./working_dir",
+        "pip": ["requests==2.26.0"]
+    }
+)
+
+"""
+====Artifact=====
+DeploymentHandles:
+    m1:
+        class: working_dir.Model
+        args: (np.zeros((2, 2)),) # what if this is other object type or not serializable ?
+    m2: class: working_dir.Model
+        args: (np.ones((2, 2)),)
+    selection:
+        class: working_dir.ModelSelection
+        args: (m1, m2, 10)
+        deps: [m1, m2]
+
+DAG: (Just for UX)
+                         -> m1 (Model)(np.zeros((2, 2)),)
+                        /
+         selection
+      (ModelSelection)
+    (m1,m2,threshold=10)
+                        \
+                         -> m2 (Model)(np.ones((2, 2)),)
+
+Entrypoint:
+    selection.forward
+
+Runtime_env:
+    working_dir:
+        "./working_dir"
+    pip:
+        requests: "2.26.0"
+"""
+
+"""
+====Mutable config, first generated from code, can be mutated later on====
+m1:
+    num_replicas:2
+m2:
+    num_replicas:5
+selection:
+    num_replicas:6
+    threshold: 7   --> This overrides bounded arg
+
+HTTPOptions:  --> Since I didn't give one, just generate all default values
+    host: "127.0.0.1"
+    port: "8000"
+    middlewares: []
+    location: "HeadOnly"
+    num_cpus: 0
+    root_url: ""
+    fixed_number_replicas: None
+    fixed_number_selection_seed: 0
+"""
+
+serve_dag_handle = dag.deploy(artifact, config)
+serve_dag_handle.remote(input)
+
+
+# Can also work with functions
+# @serve.deployment # Later will be -> @ray.remote
+# async def decide(x, method1, method2):
+#       if x % 2 == 0:
+#           return await method1.remote(x)
+#       else:
+#           return await method2.remote(x)
+
+# @ray.remote
+# def model1(x):
+#     return x + 1
+
+# @ray.remote
+# def model2(x):
+#     return x + 2
+
+# with ray.dag.builder() as sample_in:
+#      dag = decide.remote(sample_in, model1, model2)
+
+
+# Evaluate on a single sample.
+dag.call(sample) -> ModelOutput
+
+
+# `artifact` is a pickleable, non-human-readable blob.
+# `config` is a human-readable YAML that contains dynamic options (e.g., num_replicas for each model).
+immutable_artifact, mutable_config = dag.build()
+
+
+
+# Deploy as pipeline. The classes are created once and re-used.
+serve.pipeline(dag).deploy()
+
+# Alternatively do things via CLI:
+serve build my_file:dag_builder_fn
+serve deploy my_file:dag_builder_fn
+
+# Update by changing and applying mutable configs (num_replicas, path to model file, etc.)
+serve deploy my_file:dag_builder_fn --config=mutable_config
+
+
+
+# Proposal:
+# Artifact
+#   Runtime_env with working_dir & dependencies
+#   DAG IR (Groups in operationalizing serve doc)
+# Mutable config
+#   num of replicas
+#   Reconfigurable variable specified by user
+
+# Problem Space: Base DAG, A->B->C
+#   DAG change: A->C
+#       Proposed: redeploy
+#   Code implementation change A->B’->C
+#       Proposed: redeploy first
+#   config change
+#   User dependency change
+# ============== below this should be taken care of by ray wheel ============
+#   Ray lib dependency change
+#   underlying docker, os or platform changes
+
+# 1) All nodes in DAG have same runtime env
+ray job submit --runtime_env={a} entrypoint="python dag_builder.py"
+
+
+# Generates artifact and config to target location
+serve build my_file:dag_builder_fn
+    --runtime_env={"working_dir": "./working_dir", "pip": ["requests==2.26.0"]}
+    --dest="."
+
+serve deploy --artifact="./artifact" --config="./deployment_config.yaml"
